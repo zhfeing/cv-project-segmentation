@@ -1,3 +1,13 @@
 env/
 .vscode/
 __pycache__
+*.aux
+*.log
+*.synctex.gz
+*.bbl
+*.blg
+*.toc
+*.out
+*.run.xml
+*.pdf
+*.bcf

@@ -1,0 +1,63 @@
+\documentclass[10pt, a4paper]{article}
+\usepackage{ctex}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb, bm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+\usepackage[top=25.4mm, bottom=25.4mm, left=31.7mm, right=32.2mm]{geometry}
+
+
+\setmainfont{Times New Roman}
+\newtheorem{property}{性质}[section]
+\newtheorem{thm}{定理}[section]
+\newtheorem{definition}{定义}[section]
+\renewcommand{\algorithmicrequire}{\textbf{输入:}}
+\renewcommand{\algorithmicensure}{\textbf{输出:}}
+
+\usepackage[
+    style=numeric,
+    sorting=none,
+    bibstyle=gb7714-2015,
+    citestyle=gb7714-2015
+]{biblatex}
+
+\renewcommand{\bibfont}{\zihao{-5}}
+
+\addbibresource{reference.bib}
+
+\begin{document}
+\begin{titlepage}
+\pagenumbering{Roman}
+\author{张皓飞 (11921056)}
+\title{Non-convex Optimization in Machine Learning}
+\maketitle
+\thispagestyle{empty}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+\section{介绍}
+
+\subsection{非凸优化问题}
+
+
+\subsection{非凸优化动机}
+
+
+\section{背景调研}
+
+
+\section{总结}
+
+
+\newpage
+\addcontentsline{toc}{section}{参考文献}
+\nocite{*}
+\printbibliography[heading=bibliography,title=参考文献]
+
+\end{document}

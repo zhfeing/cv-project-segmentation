@@ -135,8 +135,7 @@ class _ASPP(nn.Module):
         return x
 
 
-def get_deeplabv3(dataset='pascal_voc', backbone='resnet50',
-                  pretrained_base=True, **kwargs):
+def get_deeplabv3(dataset='pascal_voc', backbone='resnet50', pretrained_base=True, **kwargs):
     acronyms = {
         'pascal_voc': 'pascal_voc',
         'pascal_aug': 'pascal_aug',

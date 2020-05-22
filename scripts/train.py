@@ -3,11 +3,6 @@ import time
 import datetime
 import os
 import shutil
-import sys
-
-cur_path = os.path.abspath(os.path.dirname(__file__))
-root_path = os.path.split(cur_path)[0]
-sys.path.append(root_path)
 
 import torch
 import torch.nn as nn
@@ -16,33 +11,22 @@ import torch.backends.cudnn as cudnn
 
 from torchvision import transforms
 from data.dataloader import get_segmentation_dataset
-from models.model_zoo import get_segmentation_model
 from utils.loss import get_segmentation_loss
-from utils.distributed import *
+from utils.sampler import make_batch_data_sampler, make_data_sampler
 from utils.logger import setup_logger
 from utils.lr_scheduler import WarmupPolyLR
 from utils.score import SegmentationMetric
+from models.deeplabv3 import get_deeplabv3
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Semantic Segmentation Training With Pytorch')
     # model and dataset
-    parser.add_argument('--model', type=str, default='fcn',
-                        choices=['fcn32s', 'fcn16s', 'fcn8s',
-                                 'fcn', 'psp', 'deeplabv3', 'deeplabv3_plus',
-                                 'danet', 'denseaspp', 'bisenet',
-                                 'encnet', 'dunet', 'icnet',
-                                 'enet', 'ocnet', 'ccnet', 'psanet',
-                                 'cgnet', 'espnet', 'lednet', 'dfanet'],
-                        help='model name (default: fcn32s)')
     parser.add_argument('--backbone', type=str, default='resnet50',
-                        choices=['vgg16', 'resnet18', 'resnet50',
-                                 'resnet101', 'resnet152', 'densenet121',
-                                 'densenet161', 'densenet169', 'densenet201'],
+                        choices=['resnet50', 'resnet101', 'resnet152'],
                         help='backbone name (default: vgg16)')
     parser.add_argument('--dataset', type=str, default='pascal_voc',
-                        choices=['pascal_voc', 'pascal_aug', 'ade20k',
-                                 'citys', 'sbu'],
+                        choices=['pascal_voc', 'pascal_aug', 'coco', 'citys'],
                         help='dataset name (default: pascal_voc)')
     parser.add_argument('--base-size', type=int, default=520,
                         help='base image size')
@@ -51,14 +35,6 @@ def parse_args():
     parser.add_argument('--workers', '-j', type=int, default=4,
                         metavar='N', help='dataloader threads')
     # training hyper params
-    parser.add_argument('--jpu', action='store_true', default=False,
-                        help='JPU')
-    parser.add_argument('--use-ohem', type=bool, default=False,
-                        help='OHEM Loss for cityscapes dataset')
-    parser.add_argument('--aux', action='store_true', default=False,
-                        help='Auxiliary loss')
-    parser.add_argument('--aux-weight', type=float, default=0.4,
-                        help='auxiliary loss weight')
     parser.add_argument('--batch-size', type=int, default=4, metavar='N',
                         help='input batch size for training (default: 8)')
     parser.add_argument('--start_epoch', type=int, default=0,
@@ -77,19 +53,14 @@ def parse_args():
                         help='lr = warmup_factor * lr')
     parser.add_argument('--warmup-method', type=str, default='linear',
                         help='method of warmup')
-    # cuda setting
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='disables CUDA training')
-    parser.add_argument('--local_rank', type=int, default=0)
+
     # checkpoint and log
     parser.add_argument('--resume', type=str, default=None,
                         help='put the path to resuming file if needed')
-    parser.add_argument('--save-dir', default='~/.torch/models',
-                        help='Directory for saving checkpoint models')
+    parser.add_argument('--save-dir', help='Directory for saving checkpoint models')
     parser.add_argument('--save-epoch', type=int, default=10,
                         help='save model every checkpoint-epoch')
-    parser.add_argument('--log-dir', default='../runs/logs/',
-                        help='Directory for saving checkpoint models')
+    parser.add_argument('--log-dir', help='Directory for saving checkpoint models')
     parser.add_argument('--log-iter', type=int, default=10,
                         help='print log every log-iter')
     # evaluation only
@@ -105,10 +76,7 @@ def parse_args():
             'coco': 30,
             'pascal_aug': 80,
             'pascal_voc': 50,
-            'pcontext': 80,
-            'ade20k': 160,
             'citys': 120,
-            'sbu': 160,
         }
         args.epochs = epoches[args.dataset.lower()]
     if args.lr is None:
@@ -116,10 +84,7 @@ def parse_args():
             'coco': 0.004,
             'pascal_aug': 0.001,
             'pascal_voc': 0.0001,
-            'pcontext': 0.001,
-            'ade20k': 0.01,
             'citys': 0.01,
-            'sbu': 0.001,
         }
         args.lr = lrs[args.dataset.lower()] / 8 * args.batch_size
     return args
@@ -142,36 +107,41 @@ class Trainer(object):
         args.iters_per_epoch = len(train_dataset) // (args.num_gpus * args.batch_size)
         args.max_iters = args.epochs * args.iters_per_epoch
 
-        train_sampler = make_data_sampler(train_dataset, shuffle=True, distributed=args.distributed)
+        train_sampler = make_data_sampler(train_dataset, shuffle=True)
         train_batch_sampler = make_batch_data_sampler(train_sampler, args.batch_size, args.max_iters)
-        val_sampler = make_data_sampler(val_dataset, False, args.distributed)
+        val_sampler = make_data_sampler(val_dataset, shuffle=False)
         val_batch_sampler = make_batch_data_sampler(val_sampler, args.batch_size)
 
-        self.train_loader = data.DataLoader(dataset=train_dataset,
-                                            batch_sampler=train_batch_sampler,
-                                            num_workers=args.workers,
-                                            pin_memory=True)
-        self.val_loader = data.DataLoader(dataset=val_dataset,
-                                          batch_sampler=val_batch_sampler,
-                                          num_workers=args.workers,
-                                          pin_memory=True)
+        self.train_loader = data.DataLoader(
+            dataset=train_dataset,
+            batch_sampler=train_batch_sampler,
+            num_workers=args.workers,
+            pin_memory=True
+        )
+        self.val_loader = data.DataLoader(
+            dataset=val_dataset,
+            batch_sampler=val_batch_sampler,
+            num_workers=args.workers,
+            pin_memory=True
+        )
 
         # create network
-        BatchNorm2d = nn.SyncBatchNorm if args.distributed else nn.BatchNorm2d
-        self.model = get_segmentation_model(model=args.model, dataset=args.dataset, backbone=args.backbone,
-                                            aux=args.aux, jpu=args.jpu, norm_layer=BatchNorm2d).to(self.device)
+        self.model = get_deeplabv3(
+            dataset=args.dataset,
+            backbone=args.backbone,
+            pretrained_base=True,
+            root=args.root
+        )
 
         # resume checkpoint if needed
         if args.resume:
             if os.path.isfile(args.resume):
                 name, ext = os.path.splitext(args.resume)
-                assert ext == '.pkl' or '.pth', 'Sorry only .pth and .pkl files supported.'
                 print('Resuming training, loading {}...'.format(args.resume))
                 self.model.load_state_dict(torch.load(args.resume, map_location=lambda storage, loc: storage))
 
         # create criterion
-        self.criterion = get_segmentation_loss(args.model, use_ohem=args.use_ohem, aux=args.aux,
-                                               aux_weight=args.aux_weight, ignore_index=-1).to(self.device)
+        self.criterion = get_segmentation_loss(args.model, aux=False, ignore_index=-1).to(self.device)
 
         # optimizer, for model just includes pretrained, head and auxlayer
         params_list = list()
@@ -180,22 +150,29 @@ class Trainer(object):
         if hasattr(self.model, 'exclusive'):
             for module in self.model.exclusive:
                 params_list.append({'params': getattr(self.model, module).parameters(), 'lr': args.lr * 10})
-        self.optimizer = torch.optim.SGD(params_list,
-                                         lr=args.lr,
-                                         momentum=args.momentum,
-                                         weight_decay=args.weight_decay)
+        self.optimizer = torch.optim.SGD(
+            params_list,
+            lr=args.lr,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay
+        )
 
         # lr scheduling
-        self.lr_scheduler = WarmupPolyLR(self.optimizer,
-                                         max_iters=args.max_iters,
-                                         power=0.9,
-                                         warmup_factor=args.warmup_factor,
-                                         warmup_iters=args.warmup_iters,
-                                         warmup_method=args.warmup_method)
+        self.lr_scheduler = WarmupPolyLR(
+            self.optimizer,
+            max_iters=args.max_iters,
+            power=0.9,
+            warmup_factor=args.warmup_factor,
+            warmup_iters=args.warmup_iters,
+            warmup_method=args.warmup_method
+        )
 
         if args.distributed:
-            self.model = nn.parallel.DistributedDataParallel(self.model, device_ids=[args.local_rank],
-                                                             output_device=args.local_rank)
+            self.model = nn.parallel.DistributedDataParallel(
+                self.model,
+                device_ids=[args.local_rank],
+                output_device=args.local_rank
+            )
 
         # evaluation metrics
         self.metric = SegmentationMetric(train_dataset.num_class)
@@ -203,7 +180,6 @@ class Trainer(object):
         self.best_pred = 0.0
 
     def train(self):
-        save_to_disk = get_rank() == 0
         epochs, max_iters = self.args.epochs, self.args.max_iters
         log_per_iters, val_per_iters = self.args.log_iter, self.args.val_epoch * self.args.iters_per_epoch
         save_per_iters = self.args.save_epoch * self.args.iters_per_epoch
@@ -224,8 +200,7 @@ class Trainer(object):
             losses = sum(loss for loss in loss_dict.values())
 
             # reduce losses over all GPUs for logging purposes
-            loss_dict_reduced = reduce_loss_dict(loss_dict)
-            losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+            losses_reduced = sum(loss for loss in loss_dict.values())
 
             self.optimizer.zero_grad()
             losses.backward()
@@ -234,13 +209,13 @@ class Trainer(object):
             eta_seconds = ((time.time() - start_time) / iteration) * (max_iters - iteration)
             eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
 
-            if iteration % log_per_iters == 0 and save_to_disk:
+            if iteration % log_per_iters == 0:
                 logger.info(
                     "Iters: {:d}/{:d} || Lr: {:.6f} || Loss: {:.4f} || Cost Time: {} || Estimated Time: {}".format(
                         iteration, max_iters, self.optimizer.param_groups[0]['lr'], losses_reduced.item(),
                         str(datetime.timedelta(seconds=int(time.time() - start_time))), eta_string))
 
-            if iteration % save_per_iters == 0 and save_to_disk:
+            if iteration % save_per_iters == 0:
                 save_checkpoint(self.model, self.args, is_best=False)
 
             if not self.args.skip_val and iteration % val_per_iters == 0:
@@ -279,7 +254,6 @@ class Trainer(object):
             is_best = True
             self.best_pred = new_pred
         save_checkpoint(self.model, self.args, is_best)
-        synchronize()
 
 
 def save_checkpoint(model, args, is_best=False):
@@ -312,13 +286,9 @@ if __name__ == '__main__':
     else:
         args.distributed = False
         args.device = "cpu"
-    if args.distributed:
-        torch.cuda.set_device(args.local_rank)
-        torch.distributed.init_process_group(backend="nccl", init_method="env://")
-        synchronize()
     args.lr = args.lr * num_gpus
 
-    logger = setup_logger("semantic_segmentation", args.log_dir, get_rank(), filename='{}_{}_{}_log.txt'.format(
+    logger = setup_logger("semantic_segmentation", args.log_dir, filename='{}_{}_{}_log.txt'.format(
         args.model, args.backbone, args.dataset))
     logger.info("Using {} GPUs".format(num_gpus))
     logger.info(args)
