@@ -11,3 +11,5 @@ __pycache__
 *.run.xml
 *.pdf
 *.bcf
+logs/
+checkpoints/
