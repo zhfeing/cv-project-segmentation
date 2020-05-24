@@ -35,7 +35,7 @@
 #     --log-iter=3
 
 
-
+# train MSCOCO
 export NGPUS=2
 export CUDA_VISIBLE_DEVICES="1, 2"
 export OMP_NUM_THREADS=1
