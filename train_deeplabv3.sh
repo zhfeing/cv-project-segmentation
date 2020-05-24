@@ -50,7 +50,8 @@ python -m torch.distributed.launch --nproc_per_node=$NGPUS \
     --epochs=25 \
     --save-dir=./checkpoints/ \
     --log-dir=./logs/ \
-    --log-iter=3 \
-    --workers=10
+    --log-iter=1 \
+    --workers=5 \
+    --seed=1
 
 echo Done

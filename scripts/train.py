@@ -3,7 +3,8 @@ import time
 import datetime
 import os
 import shutil
-import sys
+import random
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -37,6 +38,7 @@ def parse_args():
                         help="crop image size")
     parser.add_argument("--workers", "-j", type=int, default=4,
                         metavar="N", help="dataloader threads")
+    parser.add_argument("--seed", type=int)
     # training hyper params
     parser.add_argument("--batch-size", type=int, default=4, metavar="N",
                         help="input batch size for training (default: 8)")
@@ -229,6 +231,22 @@ class Trainer(object):
             loss_dict_reduced = distributed.reduce_loss_dict(loss_dict)
             losses_reduced = sum(loss for loss in loss_dict_reduced.values())
 
+            if torch.isnan(losses) and save_to_disk:
+                logger.fatal("nan loss, skip this time")
+                state_dict = dict(
+                    images=images,
+                    targets=targets,
+                    outputs=outputs,
+                    loss_dict=loss_dict,
+                    losses=losses,
+                    loss_dict_reduced=loss_dict_reduced,
+                    losses_reduced=losses_reduced,
+                    model=self.model.module,
+                    optimizer=self.optimizer
+                )
+                torch.save(state_dict, os.path.join(args.log_dir, "error_checkpoint.pth"))
+                exit()
+
             self.optimizer.zero_grad()
             losses.backward()
             self.optimizer.step()
@@ -323,6 +341,15 @@ if __name__ == "__main__":
         torch.cuda.set_device(args.local_rank)
         torch.distributed.init_process_group(backend="nccl", init_method="env://")
         distributed.synchronize()
+    if args.seed is not None:
+        print("setting manual seed = {}".format(args.seed))
+        cudnn.deterministic = True
+        cudnn.benchmark = False
+        random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+        np.random.seed(args.seed)
+
     args.lr = args.lr * num_gpus
 
     logger = setup_logger(
