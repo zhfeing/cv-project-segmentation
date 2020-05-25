@@ -35,39 +35,39 @@
 #     --log-iter=3
 
 
-export NGPUS=1
-export CUDA_VISIBLE_DEVICES="1"
-export OMP_NUM_THREADS=1
-export PYTHONPATH=./:$PYTHONPATH
-python -m torch.distributed.launch --nproc_per_node=$NGPUS \
-    scripts/train.py \
-    --backbone=resnet50 \
-    --dataset=coco \
-    --dataset_root=/home/zhfeing/datasets/coco_my \
-    --pretrained_dir=/home/zhfeing/model-zoo \
-    --batch-size=18 \
-    --epochs=10 \
-    --save-dir=./checkpoints/ \
-    --log-dir=./logs/ \
-    --log-iter=1 \
-    --workers=8
-
-
-# export NGPUS=2
-# export CUDA_VISIBLE_DEVICES="1, 2"
+# export NGPUS=1
+# export CUDA_VISIBLE_DEVICES="1"
 # export OMP_NUM_THREADS=1
 # export PYTHONPATH=./:$PYTHONPATH
 # python -m torch.distributed.launch --nproc_per_node=$NGPUS \
 #     scripts/train.py \
 #     --backbone=resnet50 \
-#     --dataset=coco \
-#     --dataset_root=/home/zhfeing/datasets/coco \
+#     --dataset=citys \
+#     --dataset_root=/home/zhfeing/datasets/cityscape \
 #     --pretrained_dir=/home/zhfeing/model-zoo \
-#     --batch-size=18 \
-#     --epochs=25 \
+#     --batch-size=4 \
+#     --epochs=10 \
 #     --save-dir=./checkpoints/ \
 #     --log-dir=./logs/ \
 #     --log-iter=1 \
 #     --workers=8
+
+
+export NGPUS=2
+export CUDA_VISIBLE_DEVICES="1, 2"
+export OMP_NUM_THREADS=1
+export PYTHONPATH=./:$PYTHONPATH
+python -m torch.distributed.launch --nproc_per_node=$NGPUS \
+    scripts/train.py \
+    --backbone=resnet50 \
+    --dataset=citys \
+    --dataset_root=/home/zhfeing/datasets/cityscape \
+    --pretrained_dir=/home/zhfeing/model-zoo \
+    --batch-size=4 \
+    --epochs=30 \
+    --save-dir=./checkpoints/ \
+    --log-dir=./logs/ \
+    --log-iter=1 \
+    --workers=8
 
 echo Done
