@@ -7,6 +7,8 @@
 \usepackage{algpseudocode}
 \usepackage{hyperref}
 \usepackage[top=25.4mm, bottom=25.4mm, left=31.7mm, right=32.2mm]{geometry}
+\usepackage{graphicx}
+\usepackage{subfigure}
 
 
 \setmainfont{Times New Roman}
@@ -75,9 +77,37 @@ Alex Krizhevsky通过训练卷积神经网络AlexNet\cite{AlexNet}并获得了�
 该算法在Pascal VOC数据集\cite{VOC}和MSCOCO数据集\cite{COCO}取得了当时较好的结果。
 
 \section{相关工作}
+\subsection{语义分割任务}
+关于深度卷积网络(DCNNs)在像素级语义分割中有大致三种主要方法：
+
+\begin{description}
+    \item[基于区域的语义分割] 基于区域的方法通常基于目标检测架构如R-CNN\cite{RCNN}等，对于分割的任务，R-CNN首先利用
+    选择性搜索提取大量的候选区域，并计算其对应的特征。之后再使用线性分类模型对每个区域进行分类，再将区域的预测转换为
+    像素预测。这种方法通常无法端到端实现，计算量较大。
+    \item[弱监督语义分割] 通常对语义分割的数据集的标注是非常繁琐的，为此许多方法提出使用边框注释来作为监督信息训练
+    模型，而非像素级的标注如BoxSup\cite{BoxSup}算法致力于通过使用带注释的边界框来实现语义分割。
+    \item[全卷积网络语义分割] 全卷积网络可以对输入的图像进行端到端的语义分割，从而使得语义分割模型可以快速且方便的训练。
+    全卷积网络大致可看成为编码器-解码器架构，其中编码器部分从图像中提取特征，解码器部分将提取到的特征恢复为语义分割的图像，
+    如图\ref{p1}所示。目前，FCNs\cite{FCN}、SegNet\cite{SegNet}、U-Net\cite{UNet}以及DeepLab系列模型都为基于全卷积的
+    语义分割模型。
+
+    \begin{figure}
+        \label{p1}
+        \centering
+        \includegraphics[width=\textwidth]{p1.eps}
+        \caption{编解码器示例\cite{SegNet}}
+    \end{figure}
+\end{description}
 
 \section{方法}
+\subsection{DeepLab-V1}
+
+
+
+\subsection{DeepLab-V2}
+
 \section{实验结果}
+
 \section{总结}
 
 
