@@ -63,11 +63,26 @@ python -m torch.distributed.launch --nproc_per_node=$NGPUS \
     --dataset=citys \
     --dataset_root=/home/zhfeing/datasets/cityscape \
     --pretrained_dir=/home/zhfeing/model-zoo \
-    --batch-size=4 \
-    --epochs=30 \
+    --batch-size=20 \
+    --epochs=120 \
     --save-dir=./checkpoints/ \
     --log-dir=./logs/ \
     --log-iter=1 \
-    --workers=8
+    --workers=8 
 
-echo Done
+echo Done1
+
+python -m torch.distributed.launch --nproc_per_node=$NGPUS \
+    scripts/train.py \
+    --backbone=resnet101 \
+    --dataset=citys \
+    --dataset_root=/home/zhfeing/datasets/cityscape \
+    --pretrained_dir=/home/zhfeing/model-zoo \
+    --batch-size=12 \
+    --epochs=120 \
+    --save-dir=./checkpoints/ \
+    --log-dir=./logs/ \
+    --log-iter=1 \
+    --workers=8 
+
+echo Done2
