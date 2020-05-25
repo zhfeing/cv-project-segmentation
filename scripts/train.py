@@ -222,7 +222,19 @@ class Trainer(object):
             images = images.to(self.device)
             targets = targets.to(self.device)
 
-            outputs = self.model(images)
+            try:
+                outputs = self.model(images)
+            except Exception as e:
+                logger.fatal("while forwarding: error: {} occurs, passing".format(e))
+                torch.cuda.empty_cache()
+                state_dict = dict(
+                    iteration=iteration,
+                    images=images,
+                    targets=targets
+                )
+                torch.save(state_dict, os.path.join(args.log_dir, "error_{}.pth".format(iteration)))
+                continue
+
             loss_dict = self.criterion(outputs, targets)
 
             losses = sum(loss for loss in loss_dict.values())
@@ -230,22 +242,6 @@ class Trainer(object):
             # reduce losses over all GPUs for logging purposes
             loss_dict_reduced = distributed.reduce_loss_dict(loss_dict)
             losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-
-            if torch.isnan(losses) and save_to_disk:
-                logger.fatal("nan loss, skip this time")
-                state_dict = dict(
-                    images=images,
-                    targets=targets,
-                    outputs=outputs,
-                    loss_dict=loss_dict,
-                    losses=losses,
-                    loss_dict_reduced=loss_dict_reduced,
-                    losses_reduced=losses_reduced,
-                    model=self.model.module,
-                    optimizer=self.optimizer
-                )
-                torch.save(state_dict, os.path.join(args.log_dir, "error_checkpoint.pth"))
-                exit()
 
             self.optimizer.zero_grad()
             losses.backward()

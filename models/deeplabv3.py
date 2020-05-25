@@ -43,8 +43,19 @@ class DeepLabV3(SegBaseModel):
         size = x.size()[2:]
         _, _, c3, c4 = self.base_forward(x)
         outputs = []
+        if torch.isnan(c4).any():
+            raise Exception("1 Nan c4")
         x = self.head(c4)
+        if torch.isnan(x).any():
+            raise Exception("2 Nan x")
         x = F.interpolate(x, size, mode='bilinear', align_corners=True)
+        if torch.isnan(x).any():
+            raise Exception("3 Nan x")
+
+        with torch.no_grad():
+            m = torch.abs(x).max()
+            if m > 100.0:
+                raise Exception("output: {} is too large".format(m))
         outputs.append(x)
 
         if self.aux:
@@ -68,6 +79,8 @@ class _DeepLabHead(nn.Module):
 
     def forward(self, x):
         x = self.aspp(x)
+        if torch.isnan(x).any():
+            raise Exception("4 Nan x")
         return self.block(x)
 
 
@@ -97,7 +110,11 @@ class _AsppPooling(nn.Module):
     def forward(self, x):
         size = x.size()[2:]
         pool = self.gap(x)
+        if torch.isnan(pool).any():
+            raise Exception("5 Nan poo")
         out = F.interpolate(pool, size, mode='bilinear', align_corners=True)
+        if torch.isnan(out).any():
+            raise Exception("6 Nan out")
         return out
 
 
@@ -126,12 +143,24 @@ class _ASPP(nn.Module):
 
     def forward(self, x):
         feat1 = self.b0(x)
+        if torch.isnan(feat1).any():
+            raise Exception("7 Nan feat1")
         feat2 = self.b1(x)
+        if torch.isnan(feat2).any():
+            raise Exception("8 Nan feat2")
         feat3 = self.b2(x)
+        if torch.isnan(feat3).any():
+            raise Exception("9 Nan feat3")
         feat4 = self.b3(x)
+        if torch.isnan(feat4).any():
+            raise Exception("10 Nan feat4")
         feat5 = self.b4(x)
+        if torch.isnan(feat5).any():
+            raise Exception("11 Nan feat5")
         x = torch.cat((feat1, feat2, feat3, feat4, feat5), dim=1)
         x = self.project(x)
+        if torch.isnan(x).any():
+            raise Exception("12 Nan x")
         return x
 
 

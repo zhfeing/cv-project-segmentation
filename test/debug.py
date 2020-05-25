@@ -1,34 +1,31 @@
+from data.dataloader import COCOSegmentation
+from torchvision import transforms
 import torch
-import os
-
-from utils import distributed
+import tqdm
 
 
-# if __name__ == "__main__":
-#     # reference maskrcnn-benchmark
-#     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
-#     is_distributed = num_gpus > 1
-#     device = "cuda"
-#     if is_distributed:
-#         torch.cuda.set_device(0)
-#         torch.distributed.init_process_group(backend="nccl", init_method="env://")
-#         distributed.synchronize()
+# input_transform = transforms.Compose([
+#     transforms.ToTensor(),
+#     transforms.Normalize([.485, .456, .406], [.229, .224, .225]),
+# ])
+# dataset = COCOSegmentation(root="/home/zhfeing/datasets/coco", transform=input_transform)
 
-#     debug_file = torch.load("logs/error_checkpoint.pth")
+# for i in tqdm.trange(len(dataset)):
+#     x: torch.Tensor = dataset[i][0]
+#     y: torch.Tensor = dataset[i][1]
+#     # print(x.mean(), x.var(), x.max(), x.min(), sep="\t")
+#     # print(y.max(), y.min())
+#     # if y.max() == y.min():
+#         # print("yyy", y.max(), y.min(), sep="\t")
+#     if torch.abs(x.max() - x.min()) < 1e-3:
+#         raise Exception("gggg")
 
-#     images = debug_file["images"]
-#     targets = debug_file["targets"]
-#     outputs = debug_file["outputs"]
-#     loss_dict = debug_file["loss_dict"]
-#     losses = debug_file["losses"]
-#     losses_reduced = debug_file["losses_reduced"]
-#     model: torch.nn.Module = debug_file["model"].module
+#     # print()
 
-#     with torch.no_grad():
-#         y = model(images[0:1, ...])
-#         print(images.shape)
-#         print(torch.isnan(y).any())
-#         print(y)
+pth = torch.load("logs/error_15.pth", map_location="cpu")
+images = pth["images"]
+targets = pth["targets"]
 
-a = torch.load("checkpoints/deeplabv3_resnet50_coco.pth", map_location="cpu")
-print(a)
+for i in range(images.shape[0]):
+    print(images[i].min(), images[i].max(), images[i].mean(), images[i].var(), sep="\t")
+    print(targets[i].min(), targets[i].max(), sep="\t")
