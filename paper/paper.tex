@@ -9,6 +9,8 @@
 \usepackage[top=25.4mm, bottom=25.4mm, left=31.7mm, right=32.2mm]{geometry}
 \usepackage{graphicx}
 \usepackage{subfigure}
+\usepackage{booktabs}
+
 
 
 \setmainfont{Times New Roman}
@@ -88,10 +90,10 @@ Alex Krizhevsky通过训练卷积神经网络AlexNet\cite{AlexNet}并获得了�
     模型，而非像素级的标注如BoxSup\cite{BoxSup}算法致力于通过使用带注释的边界框来实现语义分割。
     \item[全卷积网络语义分割] 全卷积网络可以对输入的图像进行端到端的语义分割，从而使得语义分割模型可以快速且方便的训练。
     全卷积网络大致可看成为编码器-解码器架构，其中编码器部分从图像中提取特征，解码器部分将提取到的特征恢复为语义分割的图像，
-    如图\ref{p1}所示。目前，FCNs\cite{FCN}、SegNet\cite{SegNet}、U-Net\cite{UNet}以及DeepLab系列模型都为基于全卷积的
-    语义分割模型。
+    如图\ref{p1}所示。目前，FCNs\cite{FCN}、SegNet\cite{SegNet}以及U-Net\cite{UNet}系列模型都为基于全卷积的
+    语义分割模型类别中。
 
-    \begin{figure}[h]
+    \begin{figure}[htbp]
         \centering
         \includegraphics[width=\textwidth]{p1.eps}
         \caption{编解码器示例\cite{SegNet}}
@@ -99,30 +101,201 @@ Alex Krizhevsky通过训练卷积神经网络AlexNet\cite{AlexNet}并获得了�
     \end{figure}
 \end{description}
 
+尽管DeepLab系列模型并不完全可以划分到上面三类，但由于其整体依旧可看作编-解码器类型，因此本文中将DeepLab划分到
+全卷积网络语义分割。为此我们需要简单介绍编解码器架构。
+
+\subsection{编-解码器架构}
+在编-解码的模型框架中，整体可以看作两部分：第一部分为编码器，负责将输入的图片转换为在编码子空间中对输入图像的表示
+（嵌入）；第二部分为解码器，负责将编码子空间中的表示恢复到维度更高的子空间中，如输入图像的子空间。在这种架构中，
+编码器可以将图像里复杂的目标提取出来，并剔除部分噪声。解码器部分则试图按照任务要求构将编码的信息部分恢复。
+在编-解码器的框架下，可以完成如语义分割，图像降噪，超分辨等任务。
+
+一般而言，编码器部分为深度卷积神经网络，且采用最大池化等操作进行维度的缩减，这样可以使得网络具有缩放不变性，平移不变性等。
+在解码器部分，通常采用转置卷积的操作以恢复维度。
+
 \section{方法}
 \subsection{DeepLab-V1}
-在第一版的DeepLab模型中，使用DCNNs做为输入图像的特征提取器和稠密图像分类器，像素级的条件随机场(CRFs)\cite{CRF}
-作为语义分割部分。
-\subsubsection{稠密图像分类器}
-DeepLab使用在ImageNet数据集预训练的VGG模型\cite{VGG}作为特征提取器。然而在分类任务中强调目标的平移不变性，
-而在像素级语义分割中，则需要平移可变性。因此，DeepLab方法将VGG模型中的后两次池化层去掉，并使将最后三次卷积操作
-变成空洞卷积如图\ref{p2}所示。
+在第一版的DeepLab模型中，使用DCNNs做为输入图像的特征提取器和稠密图像分类器，像素级的全连接条件随机场(CRFs)\cite{CRF}
+作为语义分割部分。其编码器部分可以看作是稠密图像分类器，解码器部分可以看作为全连接条件随机场。
 
-\begin{figure}[h]
+\subsubsection{稠密图像分类器}
+DeepLab使用在ImageNet数据集预训练的VGG-16模型\cite{VGG}作为骨干网络。然而在分类任务中强调目标的平移不变性，
+而在像素级语义分割中，则需要平移可变性。因此，DeepLab方法将VGG模型中的后两次池化层去掉，并使将最后三次卷积操作
+变成空洞卷积如图\ref{p2}所示。从而将输入图像的尺寸降低到原来的$\frac{1}{8}$，并作为图像的表示。
+
+和池化操作或者步长不为1的卷积操作相比，空洞卷积操作可以在降低维度的同时具有更大的感受野，这样就可以在保留更多的空间
+信息的同时降低维度。尽管我们可以不设置池化操作，从而维持每层网络的输出不变，然而这样会导致计算量的增加，使得网络更加
+难以优化。
+
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=7cm]{p2.png}
     \caption{一维空洞卷积示例，这里卷积核大小为3，输入的步长为2，输出的步长为1}
     \label{p2}
 \end{figure}
 
+\subsubsection{全连接条件随机场}
+在稠密图像分类器中，在一定程度上我们可以得到语义分割的结果（尺度为原来的$\frac{1}{8}$），但由于深度卷积网络在准确率和
+定位上的矛盾，因此直接使用DCNNs的输出结果效果不佳。为了解决该问题，研究人员提出了两个解决的方向，一是采用多层输出的信息来
+对目标的边界进行更好的确定\cite{FCN,eigen2015predicting}；另外一类方法采用超像素的表示，将定位变成一种低级的分割方法
+\cite{mostajabi2015feedforward}。而在DeepLab算法中，给出了一种新的解决思路，即结合DCNNs的识别能力以及全连接条件
+随机场的细粒度定位能力。
+
+传统上，条件随机场是用来对分割结果进行光滑处理，通常这些模型包含耦合相邻节点的能量项，倾向于将相同的标签分配给空间上最接近的
+像素。这些短程的条件随机场的主要功能为清楚奖励在手工设计的特征上的弱分类器的虚假预测。而从图\ref{p3}中我们可以看到，DCNNs
+输出的结果已经非常光滑，因此我们的目的不是对其进行光滑处理，而是恢复细节信息。为此DeepLab引入全连接条件随机场的模型\cite{FC-CRF}
+来进行更细致的语义分割。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{p3.eps}
+    \caption{使用DCNN和全连接条件随机场做分割的比较，其中最左面的为真实标注结果}
+    \label{p3}
+\end{figure}
+
+定义能量函数
+\begin{equation}
+    E(\bm{x}) = \sum_i \theta_i(x_i) + \sum_{i,j}\theta_{i, j}(x_i, x_j)
+\end{equation}
+
+其中$\bm{x}$为对每个像素的标签。使用一元势函数$\theta_i(x_i) = -\log P(x_i)$，其中函数$P(x_i)$为通过DCNN得到的
+对像素$i$的概率标签。二元势函数定义为
+\[
+    \theta_{i, j}(x_i, x_j) = \mu(x_i, x_j)\sum_{m=1}^K w_m\cdot k^m(\bm{f}_i, \bm{f}_j)
+\]
+其中，
+\[
+    \mu(x_i, x_j) = 
+    \begin{cases}
+        1 & x_i \neq x_j \\
+         0 & x_i = x_j
+    \end{cases} 
+\]
+
+每一个函数$k_m(\cdot, \cdot)$，都为高斯个函数都依赖于第$i$和第$j$个像素点的特征。DeepLab采用双边位置和颜色项并进行加权
+\begin{equation}
+    w_1\exp\left(-\frac{\|p_i - p_j\|^2}{2\sigma_\alpha^2} - \frac{\|I_i - I_j\|^2}{2\sigma_\beta^2}\right) + 
+    w_2\exp\left(-\frac{\|p_i - p_j\|^2}{2\sigma_\gamma^2}\right)
+\end{equation}
+
+其中第一项依赖于像素点$i$和$j$的距离和像素的值，而第二项仅依赖于距离，$\sigma_\alpha$、$\sigma_\beta$和$\sigma_\gamma$
+均为高斯核函数的超参数。
+
+\subsubsection{小结}
+DeepLab第一个版本的整体流程如图\ref{p4}所示，首先输入的图片经过深度卷积网络得到粗粒度的分割图，经过双线新插值后
+恢复原图的尺寸，再通过全连接条件随机场获得最终的语义分割结果。
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{p4.eps}
+    \caption{模型整体流程}
+    \label{p4}
+\end{figure}
 
 \subsection{DeepLab-V2}
+DeepLab-V2为对上述DeepLab-V1模型的改进，主要改进为将原模型中DCNN中的空洞卷积进行改进，采用多个上采样的卷积核组合构成
+多孔卷积（Atrous Convolution），此外在DeepLab-V2中骨架网络由原来的VGG改为ResNet-101\cite{ResNet}。
+
+\subsubsection{多孔卷积}
+在模型DeepLab-V1中，采用空洞卷积来避免对输入图片的空间信息的丢失。在本模型中，目标依然是进一步增加空间信息。
+为此，采用多个不同孔径大小的空洞卷积核组成多孔空间金字塔池化层（ASPP）如图\ref{p5}所示，其本质为多尺度的
+空洞卷积的叠加其具体实现如图\ref{p6}所示。
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=10cm]{p5.eps}
+    \caption{ASPP示例}
+    \label{p5}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=10cm]{p6.eps}
+    \caption{ASPP实现方式}
+    \label{p6}
+\end{figure}
+
+\subsection{DeepLab-V3}
+在DeepLab-V3模型中，同样使用ResNet作为骨架网络如图\ref{p7}所示，网络前3个块直接使用了ResNet的前3个块，其中每个
+块里卷积层保持输入的维度，最后一层通过步长为2的卷积降低特征的维度。若直接使用ResNet的结构如\ref{p7-1}，会导致最终输出的特征维度
+过低，从而语义分割的位置精度下降。
+
+而采用空洞卷积来加深网络如\ref{p7-2}，可以在维持特征维度的情况下获取到更大的感受野，从而提高精度。最终，DeepLab-V3的改进如图\ref{p8}
+所示。
+
+\begin{figure}[htbp]
+    \centering
+    \subfigure[不使用空洞卷积加深网络]{
+        \includegraphics[width=\textwidth]{p7-1.eps}
+        \label{p7-1}
+    }
+    \subfigure[使用空洞卷积加深网络]{
+        \includegraphics[width=\textwidth]{p7-2.eps}
+        \label{p7-2}
+    }
+    \caption{DCNNs加深方式示意}
+    \label{p7}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{p8.eps}
+    \caption{改进ASPP实现方式}
+    \label{p8}
+\end{figure}
 
 \section{实验结果}
+本章中，我们将展示对模型DeepLab-V3复现的结果。
+
+\subsection{数据集}
+我们使用的数据集为Pascal VOC和Cityscapes数据集。
+\begin{description}
+    \item[Pascal VOC] 具体而言，我们使用Pascal VOC 2012分割数据集，分别包含1464，1449和1456张训练、验证和测试的图片。
+    包括背景。主要包含真实场景中的物体，共计20个类别。
+    \item[Cityscape] Cityscapes拥有5000张在城市环境中驾驶场景的图像，由19个类别的语义分割标注。
+\end{description}
+
+\subsection{其它设定}
+模型的骨架网络使用了ResNet-50和ResNet-101。学习率按照表\ref{t1}设定。训练的循环次数按表\ref{t2}确定。
+
+\begin{table}[h]
+\begin{center}  
+\begin{tabular}{ll}
+    \toprule
+    数据集 & 学习率\\
+    \midrule
+    Pascal Voc & $0.0001$ \\
+    Cityscapes & $0.01$ \\
+    \bottomrule
+\end{tabular}
+\end{center}
+\caption{学习率设定}
+\label{t1}
+\end{table}
+
+\begin{table}[h]
+\begin{center}  
+\begin{tabular}{ll}
+    \toprule
+    数据集 & 循环次数\\
+    \midrule
+    Pascal Voc & $50$ \\
+    Cityscapes & $120$ \\
+    \bottomrule
+\end{tabular}
+\end{center}
+\caption{训练循环次数}
+\label{t2}
+\end{table}
+
+\subsection{训练结果}
+
 
 \section{总结}
+DeepLab系列模型与常规的编-解码器框架不同点在于其采用了空洞卷积或组合的空洞卷积，并减少对池化或步长不为1的卷积的
+应用，使得完了能够获得足够的感受野的情况下依然可以减少特征的尺寸，从而利用了深度卷积网络的分类准确率高的特性。
+此外，通过应用全连接条件随机场，将卷积网络输出的稠密分类图进行尺寸扩张和锐化边缘，使得输出的语义分割图像可以具有
+一方面像素分类的准确率高，另一方面对于物体的定位更加准确。
 
-
+\clearpage
 \newpage
 \addcontentsline{toc}{section}{参考文献}
 \nocite{*}

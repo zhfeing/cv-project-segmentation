@@ -59,18 +59,10 @@ class JPU(nn.Module):
     def forward(self, *inputs):
         feats = [self.conv5(inputs[-1]), self.conv4(inputs[-2]), self.conv3(inputs[-3])]
         size = feats[-1].size()[2:]
-        if torch.isnan(feats).any():
-            raise Exception("3-1 Nan feats")
         feats[-2] = F.interpolate(feats[-2], size, mode='bilinear', align_corners=True)
-        if torch.isnan(feats).any():
-            raise Exception("3-2 Nan feats")
         feats[-3] = F.interpolate(feats[-3], size, mode='bilinear', align_corners=True)
-        if torch.isnan(feats).any():
-            raise Exception("3-3 Nan feats")
         feat = torch.cat(feats, dim=1)
         feat = torch.cat([self.dilation1(feat), self.dilation2(feat), self.dilation3(feat), self.dilation4(feat)],
                          dim=1)
 
-        if torch.isnan(feats).any():
-            raise Exception("3-4 Nan feats")
         return inputs[0], inputs[1], inputs[2], feat
