@@ -3,7 +3,8 @@ import time
 import datetime
 import os
 import shutil
-import sys
+import random
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -37,6 +38,7 @@ def parse_args():
                         help="crop image size")
     parser.add_argument("--workers", "-j", type=int, default=4,
                         metavar="N", help="dataloader threads")
+    parser.add_argument("--seed", type=int)
     # training hyper params
     parser.add_argument("--batch-size", type=int, default=4, metavar="N",
                         help="input batch size for training (default: 8)")
@@ -220,7 +222,19 @@ class Trainer(object):
             images = images.to(self.device)
             targets = targets.to(self.device)
 
-            outputs = self.model(images)
+            try:
+                outputs = self.model(images)
+            except Exception as e:
+                logger.fatal("while forwarding: error: {} occurs, passing".format(e))
+                torch.cuda.empty_cache()
+                state_dict = dict(
+                    iteration=iteration,
+                    images=images,
+                    targets=targets
+                )
+                torch.save(state_dict, os.path.join(args.log_dir, "error_{}.pth".format(iteration)))
+                continue
+
             loss_dict = self.criterion(outputs, targets)
 
             losses = sum(loss for loss in loss_dict.values())
@@ -323,6 +337,15 @@ if __name__ == "__main__":
         torch.cuda.set_device(args.local_rank)
         torch.distributed.init_process_group(backend="nccl", init_method="env://")
         distributed.synchronize()
+    if args.seed is not None:
+        print("setting manual seed = {}".format(args.seed))
+        cudnn.deterministic = True
+        cudnn.benchmark = False
+        random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+        np.random.seed(args.seed)
+
     args.lr = args.lr * num_gpus
 
     logger = setup_logger(

@@ -1,5 +1,6 @@
 """Base Model for Semantic Segmentation"""
 import torch.nn as nn
+import torch
 
 from nn import JPU
 from .base_models.resnetv1b import resnet50_v1s, resnet101_v1s, resnet152_v1s
@@ -44,6 +45,14 @@ class SegBaseModel(nn.Module):
         c3 = self.pretrained.layer3(c2)
         c4 = self.pretrained.layer4(c3)
 
+        if torch.isnan(c1).any():
+            raise Exception("0-1 Nan c1")
+        if torch.isnan(c2).any():
+            raise Exception("0-2 Nan c2")
+        if torch.isnan(c3).any():
+            raise Exception("0-3 Nan c3")
+        if torch.isnan(c4).any():
+            raise Exception("0-4 Nan c4")
         if self.jpu:
             return self.jpu(c1, c2, c3, c4)
         else:
