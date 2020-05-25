@@ -91,17 +91,29 @@ Alex Krizhevsky通过训练卷积神经网络AlexNet\cite{AlexNet}并获得了�
     如图\ref{p1}所示。目前，FCNs\cite{FCN}、SegNet\cite{SegNet}、U-Net\cite{UNet}以及DeepLab系列模型都为基于全卷积的
     语义分割模型。
 
-    \begin{figure}
-        \label{p1}
+    \begin{figure}[h]
         \centering
         \includegraphics[width=\textwidth]{p1.eps}
         \caption{编解码器示例\cite{SegNet}}
+        \label{p1}
     \end{figure}
 \end{description}
 
 \section{方法}
 \subsection{DeepLab-V1}
+在第一版的DeepLab模型中，使用DCNNs做为输入图像的特征提取器和稠密图像分类器，像素级的条件随机场(CRFs)\cite{CRF}
+作为语义分割部分。
+\subsubsection{稠密图像分类器}
+DeepLab使用在ImageNet数据集预训练的VGG模型\cite{VGG}作为特征提取器。然而在分类任务中强调目标的平移不变性，
+而在像素级语义分割中，则需要平移可变性。因此，DeepLab方法将VGG模型中的后两次池化层去掉，并使将最后三次卷积操作
+变成空洞卷积如图\ref{p2}所示。
 
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=7cm]{p2.png}
+    \caption{一维空洞卷积示例，这里卷积核大小为3，输入的步长为2，输出的步长为1}
+    \label{p2}
+\end{figure}
 
 
 \subsection{DeepLab-V2}
