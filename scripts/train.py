@@ -222,18 +222,9 @@ class Trainer(object):
             images = images.to(self.device)
             targets = targets.to(self.device)
 
-            try:
-                outputs = self.model(images)
-            except Exception as e:
-                logger.fatal("while forwarding: error: {} occurs, passing".format(e))
-                torch.cuda.empty_cache()
-                state_dict = dict(
-                    iteration=iteration,
-                    images=images,
-                    targets=targets
-                )
-                torch.save(state_dict, os.path.join(args.log_dir, "error_{}.pth".format(iteration)))
-                continue
+            outputs = self.model(images)
+            if torch.isnan(outputs[0]).any():
+                raise Exception("nan output")
 
             loss_dict = self.criterion(outputs, targets)
 

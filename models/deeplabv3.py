@@ -46,10 +46,6 @@ class DeepLabV3(SegBaseModel):
         x = self.head(c4)
         x = F.interpolate(x, size, mode='bilinear', align_corners=True)
 
-        with torch.no_grad():
-            m = torch.abs(x).max()
-            if m > 100.0:
-                raise Exception("output: {} is too large".format(m))
         outputs.append(x)
 
         if self.aux:
