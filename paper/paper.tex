@@ -10,7 +10,8 @@
 \usepackage{graphicx}
 \usepackage{subfigure}
 \usepackage{booktabs}
-
+% \usepackage{float}
+% \usepackage{subfig}
 
 
 \setmainfont{Times New Roman}
@@ -95,7 +96,7 @@ Alex Krizhevsky通过训练卷积神经网络AlexNet\cite{AlexNet}并获得了�
 
     \begin{figure}[htbp]
         \centering
-        \includegraphics[width=\textwidth]{p1.eps}
+        \includegraphics[width=\textwidth]{imgs/p1.eps}
         \caption{编解码器示例\cite{SegNet}}
         \label{p1}
     \end{figure}
@@ -129,7 +130,7 @@ DeepLab使用在ImageNet数据集预训练的VGG-16模型\cite{VGG}作为骨干�
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=7cm]{p2.png}
+    \includegraphics[width=7cm]{imgs/p2.png}
     \caption{一维空洞卷积示例，这里卷积核大小为3，输入的步长为2，输出的步长为1}
     \label{p2}
 \end{figure}
@@ -148,7 +149,7 @@ DeepLab使用在ImageNet数据集预训练的VGG-16模型\cite{VGG}作为骨干�
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{p3.eps}
+    \includegraphics[width=\textwidth]{imgs/p3.eps}
     \caption{使用DCNN和全连接条件随机场做分割的比较，其中最左面的为真实标注结果}
     \label{p3}
 \end{figure}
@@ -186,7 +187,7 @@ DeepLab第一个版本的整体流程如图\ref{p4}所示，首先输入的图�
 恢复原图的尺寸，再通过全连接条件随机场获得最终的语义分割结果。
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{p4.eps}
+    \includegraphics[width=\textwidth]{imgs/p4.eps}
     \caption{模型整体流程}
     \label{p4}
 \end{figure}
@@ -201,14 +202,14 @@ DeepLab-V2为对上述DeepLab-V1模型的改进，主要改进为将原模型中
 空洞卷积的叠加其具体实现如图\ref{p6}所示。
 \begin{figure}[h]
     \centering
-    \includegraphics[width=10cm]{p5.eps}
+    \includegraphics[width=10cm]{imgs/p5.eps}
     \caption{ASPP示例}
     \label{p5}
 \end{figure}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=10cm]{p6.eps}
+    \includegraphics[width=10cm]{imgs/p6.eps}
     \caption{ASPP实现方式}
     \label{p6}
 \end{figure}
@@ -224,11 +225,11 @@ DeepLab-V2为对上述DeepLab-V1模型的改进，主要改进为将原模型中
 \begin{figure}[htbp]
     \centering
     \subfigure[不使用空洞卷积加深网络]{
-        \includegraphics[width=\textwidth]{p7-1.eps}
+        \includegraphics[width=\textwidth]{imgs/p7-1.eps}
         \label{p7-1}
     }
     \subfigure[使用空洞卷积加深网络]{
-        \includegraphics[width=\textwidth]{p7-2.eps}
+        \includegraphics[width=\textwidth]{imgs/p7-2.eps}
         \label{p7-2}
     }
     \caption{DCNNs加深方式示意}
@@ -237,7 +238,7 @@ DeepLab-V2为对上述DeepLab-V1模型的改进，主要改进为将原模型中
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{p8.eps}
+    \includegraphics[width=\textwidth]{imgs/p8.eps}
     \caption{改进ASPP实现方式}
     \label{p8}
 \end{figure}
@@ -287,7 +288,104 @@ DeepLab-V2为对上述DeepLab-V1模型的改进，主要改进为将原模型中
 \end{table}
 
 \subsection{训练结果}
+DeepLab-V3的训练结果由表\ref{t3}给出。
 
+\begin{table}[h]
+\begin{center}  
+\begin{tabular}{llll}
+        \toprule
+        数据集 & 骨干模型 & 像素级准确率 & mIoU \\
+        \midrule
+        Pascal Voc & ResNet-50 & $84.618$ & $56.120$ \\
+        Pascal Voc & ResNet-101 & $89.467$ & $66.315$ \\
+        Cityscapes & ResNet-50 & $91.406$ & $57.478$ \\
+        Cityscapes & ResNet-101 & $92.725$ & $62.548$ \\
+        \bottomrule
+\end{tabular}
+\end{center}
+\caption{DeepLab-V3模型在各数据集和骨干网络上的结果}
+\label{t3}
+\end{table}
+
+在随机抽取的测试图片的分割结果如图\ref{p9}，\ref{p10}所示，可以看出使用ResNet-101作为网络骨架训练出的结果要比
+ResNet-50分割效果更好。
+
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}[b]{0.8\linewidth}
+    \subfigure[输入图像]{
+    \begin{minipage}[b]{0.31\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{imgs/raw-2009_003044.jpg}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/raw-2009_003375.jpg}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/raw-2009_003399.jpg}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/raw-2009_004375.jpg}
+      \end{minipage}
+    }
+    % \hfill
+    \subfigure[骨干网络为ResNet50]{
+    \begin{minipage}[b]{0.31\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{imgs/r50-2009_003044.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r50-2009_003375.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r50-2009_003399.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r50-2009_004375.png}
+      \end{minipage}
+    }
+    % \hfill
+    \subfigure[骨干网络为ResNet101]{
+    \begin{minipage}[b]{0.31\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{imgs/r101-2009_003044.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r101-2009_003375.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r101-2009_003399.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r101-2009_004375.png}
+      \end{minipage}
+    }
+    \end{minipage}
+    \vfill
+    \caption{DeepLab不同的骨架网络在Pascal Voc数据集上用随机输入图片测试的结果}
+    \label{p9}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}[b]{0.8\linewidth}
+    \subfigure[输入图像]{
+    \begin{minipage}[b]{0.31\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{imgs/raw-berlin_000006_000019_leftImg8bit.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/raw-bonn_000015_000019_leftImg8bit.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/raw-leverkusen_000013_000019_leftImg8bit.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/raw-munich_000079_000019_leftImg8bit.png}
+      \end{minipage}
+    }
+    % \hfill
+    \subfigure[骨干网络为ResNet50]{
+    \begin{minipage}[b]{0.31\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{imgs/r50-berlin_000006_000019_leftImg8bit.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r50-bonn_000015_000019_leftImg8bit.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r50-leverkusen_000013_000019_leftImg8bit.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r50-munich_000079_000019_leftImg8bit.png}
+      \end{minipage}
+    }
+    % \hfill
+    \subfigure[骨干网络为ResNet101]{
+    \begin{minipage}[b]{0.31\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{imgs/r101-berlin_000006_000019_leftImg8bit.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r101-bonn_000015_000019_leftImg8bit.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r101-leverkusen_000013_000019_leftImg8bit.png}\vspace{0pt}
+        \includegraphics[width=\linewidth]{imgs/r101-munich_000079_000019_leftImg8bit.png}
+      \end{minipage}
+    }
+    \end{minipage}
+    \vfill
+    \caption{DeepLab不同的骨架网络在Cityscapes数据集上用随机输入图片测试的结果}
+    \label{p10}
+\end{figure}
 
 \section{总结}
 DeepLab系列模型与常规的编-解码器框架不同点在于其采用了空洞卷积或组合的空洞卷积，并减少对池化或步长不为1的卷积的

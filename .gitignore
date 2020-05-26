@@ -9,7 +9,7 @@ __pycache__
 *.toc
 *.out
 *.run.xml
-*.pdf
+# *.pdf
 *.bcf
 logs/
 checkpoints/
