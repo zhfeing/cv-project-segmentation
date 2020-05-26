@@ -1,11 +1,5 @@
-from __future__ import print_function
-
 import os
-import sys
-
-cur_path = os.path.abspath(os.path.dirname(__file__))
-root_path = os.path.split(cur_path)[0]
-sys.path.append(root_path)
+import argparse
 
 import torch
 import torch.nn as nn
@@ -14,13 +8,40 @@ import torch.backends.cudnn as cudnn
 
 from torchvision import transforms
 from data.dataloader import get_segmentation_dataset
-from models.model_zoo import get_segmentation_model
+from models.deeplabv3 import get_deeplabv3
 from utils.score import SegmentationMetric
 from utils.visualize import get_color_pallete
 from utils.logger import setup_logger
 from utils.distributed import synchronize, get_rank, make_data_sampler, make_batch_data_sampler
 
-from train import parse_args
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Semantic Segmentation Training With Pytorch")
+    # model and dataset
+    parser.add_argument("--backbone", type=str, default="resnet50",
+                        choices=["resnet50", "resnet101", "resnet152"],
+                        help="backbone name (default: vgg16)")
+    parser.add_argument("--dataset", type=str, default="pascal_voc",
+                        choices=["pascal_voc", "pascal_aug", "coco", "citys"],
+                        help="dataset name (default: pascal_voc)")
+    parser.add_argument("--dataset_root", type=str)
+    parser.add_argument("--pretrained_dir", type=str)
+    parser.add_argument("--base-size", type=int, default=520,
+                        help="base image size")
+    parser.add_argument("--crop-size", type=int, default=480,
+                        help="crop image size")
+    parser.add_argument("--workers", "-j", type=int, default=4,
+                        metavar="N", help="dataloader threads")
+    parser.add_argument("--seed", type=int)
+    # training hyper params
+    parser.add_argument("--log-dir", help="Directory for saving checkpoint models")
+    # cuda setting
+    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--state_dict_fp', type=str)
+    args = parser.parse_args()
+
+    args.model = "deeplabv3"
+    return args
 
 
 class Evaluator(object):
@@ -35,23 +56,41 @@ class Evaluator(object):
         ])
 
         # dataset and dataloader
-        val_dataset = get_segmentation_dataset(args.dataset, split='val', mode='testval', transform=input_transform)
+        val_dataset = get_segmentation_dataset(
+            args.dataset,
+            split='val',
+            mode='testval',
+            transform=input_transform,
+            root=args.dataset_root
+        )
         val_sampler = make_data_sampler(val_dataset, False, args.distributed)
         val_batch_sampler = make_batch_data_sampler(val_sampler, images_per_batch=1)
-        self.val_loader = data.DataLoader(dataset=val_dataset,
-                                          batch_sampler=val_batch_sampler,
-                                          num_workers=args.workers,
-                                          pin_memory=True)
+        self.val_loader = data.DataLoader(
+            dataset=val_dataset,
+            batch_sampler=val_batch_sampler,
+            num_workers=args.workers,
+            pin_memory=True
+        )
 
         # create network
         BatchNorm2d = nn.SyncBatchNorm if args.distributed else nn.BatchNorm2d
-        self.model = get_segmentation_model(model=args.model, dataset=args.dataset, backbone=args.backbone,
-                                            aux=args.aux, pretrained=True, pretrained_base=False,
-                                            local_rank=args.local_rank,
-                                            norm_layer=BatchNorm2d).to(self.device)
+        self.model = get_deeplabv3(
+            dataset=args.dataset,
+            backbone=args.backbone,
+            pretrained_base=False,
+            root=args.pretrained_dir,
+            norm_layer=BatchNorm2d
+        )
+        # load parameters
+        self.model.load_state_dict(torch.load(args.state_dict_fp, map_location="cpu"))
+        self.model = self.model.to(self.device)
+
         if args.distributed:
-            self.model = nn.parallel.DistributedDataParallel(self.model,
-                device_ids=[args.local_rank], output_device=args.local_rank)
+            self.model = nn.parallel.DistributedDataParallel(
+                self.model,
+                device_ids=[args.local_rank],
+                output_device=args.local_rank
+            )
         self.model.to(self.device)
 
         self.metric = SegmentationMetric(val_dataset.num_class)
@@ -72,8 +111,9 @@ class Evaluator(object):
                 outputs = model(image)
             self.metric.update(outputs[0], target)
             pixAcc, mIoU = self.metric.get()
-            logger.info("Sample: {:d}, validation pixAcc: {:.3f}, mIoU: {:.3f}".format(
-                i + 1, pixAcc * 100, mIoU * 100))
+            logger.info("Sample: {:d}|{:d}, validation pixAcc: {:.3f}, mIoU: {:.3f}".format(
+                i + 1, len(self.val_loader), pixAcc * 100, mIoU * 100)
+            )
 
             if self.args.save_pred:
                 pred = torch.argmax(outputs[0], 1)
@@ -89,7 +129,7 @@ if __name__ == '__main__':
     args = parse_args()
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = num_gpus > 1
-    if not args.no_cuda and torch.cuda.is_available():
+    if torch.cuda.is_available():
         cudnn.benchmark = True
         args.device = "cuda"
     else:
@@ -100,15 +140,17 @@ if __name__ == '__main__':
         torch.distributed.init_process_group(backend="nccl", init_method="env://")
         synchronize()
 
-    # TODO: optim code
     args.save_pred = True
     if args.save_pred:
-        outdir = '../runs/pred_pic/{}_{}_{}'.format(args.model, args.backbone, args.dataset)
+        outdir = 'runs/pred_pic/{}_{}_{}'.format(args.model, args.backbone, args.dataset)
         if not os.path.exists(outdir):
             os.makedirs(outdir)
 
-    logger = setup_logger("semantic_segmentation", args.log_dir, get_rank(),
-                          filename='{}_{}_{}_log.txt'.format(args.model, args.backbone, args.dataset), mode='a+')
+    logger = setup_logger(
+        "semantic_segmentation",
+        args.log_dir,
+        get_rank(),
+        filename='{}_{}_{}_log.txt'.format(args.model, args.backbone, args.dataset), mode='a+')
 
     evaluator = Evaluator(args)
     evaluator.eval()
