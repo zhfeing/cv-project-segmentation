@@ -157,7 +157,7 @@ class Trainer(object):
             pretrained_base=True,
             root=args.pretrained_dir,
             norm_layer=BatchNorm2d
-        ).to(self.device)
+        )
 
         # resume checkpoint if needed
         if args.resume:
@@ -165,8 +165,10 @@ class Trainer(object):
                 name, ext = os.path.splitext(args.resume)
                 print("Resuming training, loading {}...".format(args.resume))
                 self.model.load_state_dict(
-                    torch.load(args.resume, map_location=lambda storage, loc: storage)
+                    torch.load(args.resume, map_location="cpu")
                 )
+
+        self.model = self.model.to(self.device)
 
         # create criterion
         self.criterion = get_segmentation_loss(args.model, aux=False, ignore_index=-1).to(self.device)

@@ -83,10 +83,13 @@ python -m torch.distributed.launch --nproc_per_node=$NGPUS \
     --dataset_root=/home/zhfeing/datasets/cityscape \
     --pretrained_dir=/home/zhfeing/model-zoo \
     --batch-size=12 \
-    --epochs=120 \
+    --epochs=43 \
     --save-dir=./checkpoints/ \
     --log-dir=./logs/ \
     --log-iter=1 \
-    --workers=8 
+    --workers=8 \
+    --resume=checkpoints/deeplabv3_resnet101_citys_best_model.pth \
+    --start_epoch=77 \
+    --lr=0.000040
 
 echo Done2
