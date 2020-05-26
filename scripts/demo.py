@@ -1,30 +1,45 @@
 import os
-import sys
 import argparse
-import torch
-
-cur_path = os.path.abspath(os.path.dirname(__file__))
-root_path = os.path.split(cur_path)[0]
-sys.path.append(root_path)
-
-from torchvision import transforms
 from PIL import Image
-from utils.visualize import get_color_pallete
-from models import get_model
+import numpy as np
 
-parser = argparse.ArgumentParser(
-    description='Predict segmentation result from a given image')
-parser.add_argument('--model', type=str, default='fcn32s_vgg16_voc',
-                    help='model name (default: fcn32_vgg16)')
-parser.add_argument('--dataset', type=str, default='pascal_aug', choices=['pascal_voc/pascal_aug/ade20k/citys'],
-                    help='dataset name (default: pascal_voc)')
-parser.add_argument('--save-folder', default='~/.torch/models',
-                    help='Directory for saving checkpoint models')
-parser.add_argument('--input-pic', type=str, default='../datasets/voc/VOC2012/JPEGImages/2007_000032.jpg',
-                    help='path to the input picture')
-parser.add_argument('--outdir', default='./eval', type=str,
-                    help='path to save the predict result')
-args = parser.parse_args()
+import torch
+from torchvision import transforms
+
+from utils.visualize import get_color_pallete
+from models.deeplabv3 import get_deeplabv3
+import matplotlib
+import matplotlib.pyplot as plt
+
+
+matplotlib.use('Cairo')
+def parse_args():
+    parser = argparse.ArgumentParser(description="Semantic Segmentation Demo With Pytorch")
+    # model and dataset
+    parser.add_argument("--backbone", type=str, default="resnet50",
+                        choices=["resnet50", "resnet101", "resnet152"],
+                        help="backbone name (default: vgg16)")
+    parser.add_argument("--dataset", type=str, default="pascal_voc",
+                        choices=["pascal_voc", "pascal_aug", "coco", "citys"],
+                        help="dataset name (default: pascal_voc)")
+    parser.add_argument("--dataset_root", type=str)
+    parser.add_argument("--log-dir", help="Directory for saving checkpoint models")
+    parser.add_argument('--state_dict_fp', type=str)
+    parser.add_argument(
+        "--input-pic",
+        type=str,
+        help="path to the input picture"
+    )
+    parser.add_argument(
+        "--outdir",
+        default="./eval",
+        type=str,
+        help="path to save the predict result"
+    )
+    args = parser.parse_args()
+
+    args.model = "deeplabv3"
+    return args
 
 
 def demo(config):
@@ -38,21 +53,35 @@ def demo(config):
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
-    image = Image.open(config.input_pic).convert('RGB')
+    image = Image.open(config.input_pic).convert("RGB")
+
+    img = np.array(image)
+    plt.imshow(img)
+    plt.show()
+
+
     images = transform(image).unsqueeze(0).to(device)
 
-    model = get_model(args.model, pretrained=True, root=args.save_folder).to(device)
-    print('Finished loading model!')
+    model = get_deeplabv3(
+        dataset=config.dataset,
+        backbone=config.backbone,
+        pretrained_base=False
+    )
+    # load parameters
+    model.load_state_dict(torch.load(config.state_dict_fp, map_location="cpu"))
+    model = model.to(device)
+    print("Finished loading model!")
 
     model.eval()
     with torch.no_grad():
         output = model(images)
 
     pred = torch.argmax(output[0], 1).squeeze(0).cpu().data.numpy()
-    mask = get_color_pallete(pred, args.dataset)
-    outname = os.path.splitext(os.path.split(args.input_pic)[-1])[0] + '.png'
-    mask.save(os.path.join(args.outdir, outname))
+    mask = get_color_pallete(pred, config.dataset)
+    outname = os.path.splitext(os.path.split(config.input_pic)[-1])[0] + ".png"
+    mask.save(os.path.join(config.outdir, outname))
 
 
-if __name__ == '__main__':
-    demo(args)
+if __name__ == "__main__":
+    config = parse_args()
+    demo(config)

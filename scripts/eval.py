@@ -16,7 +16,7 @@ from utils.distributed import synchronize, get_rank, make_data_sampler, make_bat
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Semantic Segmentation Training With Pytorch")
+    parser = argparse.ArgumentParser(description="Semantic Segmentation Evaluation With Pytorch")
     # model and dataset
     parser.add_argument("--backbone", type=str, default="resnet50",
                         choices=["resnet50", "resnet101", "resnet152"],
@@ -25,14 +25,8 @@ def parse_args():
                         choices=["pascal_voc", "pascal_aug", "coco", "citys"],
                         help="dataset name (default: pascal_voc)")
     parser.add_argument("--dataset_root", type=str)
-    parser.add_argument("--pretrained_dir", type=str)
-    parser.add_argument("--base-size", type=int, default=520,
-                        help="base image size")
-    parser.add_argument("--crop-size", type=int, default=480,
-                        help="crop image size")
     parser.add_argument("--workers", "-j", type=int, default=4,
                         metavar="N", help="dataloader threads")
-    parser.add_argument("--seed", type=int)
     # training hyper params
     parser.add_argument("--log-dir", help="Directory for saving checkpoint models")
     # cuda setting
@@ -78,7 +72,6 @@ class Evaluator(object):
             dataset=args.dataset,
             backbone=args.backbone,
             pretrained_base=False,
-            root=args.pretrained_dir,
             norm_layer=BatchNorm2d
         )
         # load parameters
