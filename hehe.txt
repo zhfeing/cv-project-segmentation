@@ -1,0 +1,69 @@
+├── README.md
+├── checkpoints
+│   ├── deeplabv3_resnet101_citys_best_model.pth
+│   ├── deeplabv3_resnet101_pascal_voc_best_model.pth
+│   ├── deeplabv3_resnet50_citys_best_model.pth
+│   └── deeplabv3_resnet50_pascal_voc_best_model.pth
+├── data
+│   ├── __init__.py
+│   ├── dataloader
+│   │   ├── __init__.py
+│   │   ├── cityscapes.py
+│   │   ├── pascal_voc.py
+│   │   ├── segbase.py
+│   │   └── utils.py
+│   └── downloader
+│       ├── __init__.py
+│       ├── cityscapes.py
+│       └── pascal_voc.py
+├── models
+│   ├── __init__.py
+│   ├── base_models
+│   │   ├── __init__.py
+│   │   ├── resnet.py
+│   │   └── resnetv1b.py
+│   ├── deeplabv3.py
+│   ├── fcn.py
+│   ├── model_store.py
+│   └── segbase.py
+├── nn
+│   ├── __init__.py
+│   └── jpu.py
+├── runs
+│   └── pred_pic
+│       ├── deeplabv3_resnet101_citys
+│       │   ├── frankfurt_000000_000294_leftImg8bit.png
+│       │   ├── frankfurt_000000_000576_leftImg8bit.png
+|       |   └── ...
+│       ├── deeplabv3_resnet101_pascal_voc
+│       │   ├── 2007_000033.png
+│       │   ├── 2007_000042.png
+|       |   └── ...
+│       ├── deeplabv3_resnet50_citys
+│       │   ├── frankfurt_000000_000294_leftImg8bit.png
+│       │   ├── frankfurt_000000_000576_leftImg8bit.png
+│       │   └── ...
+│       └── deeplabv3_resnet50_pascal_voc
+│           ├── 2007_000033.png
+│           ├── 2007_000042.png
+│           └── ...
+├── scripts
+│   ├── demo.py
+│   ├── eval.py
+│   └── train.py
+├── test
+│   ├── debug.py
+│   ├── test_load_city.py
+│   ├── test_load_model.py
+│   └── test_load_voc.py
+├── train_deeplabv3.sh
+└── utils
+    ├── __init__.py
+    ├── distributed.py
+    ├── download.py
+    ├── filesystem.py
+    ├── logger.py
+    ├── loss.py
+    ├── lr_scheduler.py
+    ├── score.py
+    └── visualize.py
