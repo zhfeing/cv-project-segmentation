@@ -244,7 +244,23 @@ DeepLab-V2为对上述DeepLab-V1模型的改进，主要改进为将原模型中
 \end{figure}
 
 \section{实验结果}
-本章中，我们将展示对模型DeepLab-V3复现的结果。
+本章中，我们将展示对模型DeepLab-V3复现的结果。复现环境如表\ref{t0}所示。
+
+\begin{table}[htbp]
+\begin{center}  
+\begin{tabular}{ll}
+    \toprule
+    操作系统 & Ubuntu 18.04.4 LTS\\
+    CPU & 双路 Intel \circledR Xeon \circledR Gold 5122 CPU @ 3.60GHz \\
+    GPU & NVIDIA \circledR Quadro \circledR P6000 \\
+    代码语言 & Python 3.7.4 \\
+    深度学习框架 & PyTorch-1.5\\
+    \bottomrule
+\end{tabular}
+\end{center}
+\caption{复现环境}
+\label{t0}
+\end{table}
 
 \subsection{数据集}
 我们使用的数据集为Pascal VOC和Cityscapes数据集。
@@ -257,7 +273,7 @@ DeepLab-V2为对上述DeepLab-V1模型的改进，主要改进为将原模型中
 \subsection{其它设定}
 模型的骨架网络使用了ResNet-50和ResNet-101。学习率按照表\ref{t1}设定。训练的循环次数按表\ref{t2}确定。
 
-\begin{table}[h]
+\begin{table}[!htbp]
 \begin{center}  
 \begin{tabular}{ll}
     \toprule
@@ -272,7 +288,7 @@ DeepLab-V2为对上述DeepLab-V1模型的改进，主要改进为将原模型中
 \label{t1}
 \end{table}
 
-\begin{table}[h]
+\begin{table}[!htbp]
 \begin{center}  
 \begin{tabular}{ll}
     \toprule
@@ -290,7 +306,7 @@ DeepLab-V2为对上述DeepLab-V1模型的改进，主要改进为将原模型中
 \subsection{训练结果}
 DeepLab-V3的训练结果由表\ref{t3}给出。
 
-\begin{table}[h]
+\begin{table}[!htbp]
 \begin{center}  
 \begin{tabular}{llll}
         \toprule
